@@ -1,0 +1,66 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+source "$(dirname "$0")/../lib/utils.bash"
+
+GH_REPO="ggml-org/whisper.cpp"
+BIN_REPO="yaklang/whisper.cpp.binary"
+
+VERSION="$1"
+INSTALL_PATH="$2"
+
+OS="$(uname -s | tr '[:upper:]' '[:lower:]')"
+ARCH="$(uname -m)"
+
+echo ">>> Instalando whisper.cpp v$VERSION para $OS-$ARCH em $INSTALL_PATH"
+
+download_and_extract() {
+  local url="$1"
+  echo ">>> Baixando binário pré-compilado: $url"
+  mkdir -p "$INSTALL_PATH/bin"
+  curl -sSL "$url" -o /tmp/whisper.zip
+  unzip -q /tmp/whisper.zip -d /tmp/whisper-bin
+  cp /tmp/whisper-bin/* "$INSTALL_PATH/bin/"
+  rm -rf /tmp/whisper.zip /tmp/whisper-bin
+}
+
+# --------------------------------------------------------
+# 1. Tentar binaries comunitários (yaklang/whisper.cpp.binary)
+# --------------------------------------------------------
+BINARY_URL=""
+case "$OS-$ARCH" in
+  linux-x86_64) BINARY_URL="https://github.com/$BIN_REPO/releases/download/v$VERSION/whisper-linux-x64.zip" ;;
+  linux-aarch64) BINARY_URL="https://github.com/$BIN_REPO/releases/download/v$VERSION/whisper-linux-arm64.zip" ;;
+  darwin-x86_64) BINARY_URL="https://github.com/$BIN_REPO/releases/download/v$VERSION/whisper-darwin-x64.zip" ;;
+  darwin-arm64) BINARY_URL="https://github.com/$BIN_REPO/releases/download/v$VERSION/whisper-darwin-arm64.zip" ;;
+esac
+
+if [ -n "$BINARY_URL" ]; then
+  if curl --output /dev/null --silent --head --fail "$BINARY_URL"; then
+    download_and_extract "$BINARY_URL"
+    echo ">>> whisper.cpp $VERSION instalado com sucesso (binário)"
+    exit 0
+  else
+    echo ">>> Nenhum binário encontrado para $OS-$ARCH nessa versão."
+  fi
+fi
+
+# --------------------------------------------------------
+# 2. Fallback: compilar do source
+# --------------------------------------------------------
+echo ">>> Compilando whisper.cpp v$VERSION do source"
+
+git clone --depth=1 --branch "v$VERSION" https://github.com/$GH_REPO.git tmp-src
+cd tmp-src
+
+# whisper.cpp usa Makefile simples
+make -j"$(nproc)"
+
+mkdir -p "$INSTALL_PATH/bin"
+cp main "$INSTALL_PATH/bin/whisper"
+[ -d models ] && cp -r models "$INSTALL_PATH/models" || true
+
+cd ..
+rm -rf tmp-src
+
+echo ">>> whisper.cpp $VERSION instalado com sucesso (compilado)"

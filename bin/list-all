@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+GH_REPO="ggml-org/whisper.cpp"
+
+git ls-remote --tags --refs https://github.com/$GH_REPO.git \
+  | cut -d/ -f3 \
+  | sed 's/^v//'
