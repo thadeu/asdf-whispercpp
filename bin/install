@@ -1,34 +1,49 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-install_whisper() {
-    # Cria o diretório temporário
-    TMP_DIR=$(mktemp -d -t whispercpp-XXXX)
-    echo ">>> Criando diretório temporário: $TMP_DIR"
+# Funções auxiliares (se você tiver utils.bash, pode importar)
+# source "$(dirname "$0")/../lib/utils.bash"
 
-    # Garantir que ele será apagado mesmo se houver erro
-    cleanup() {
-        if [[ -d "$TMP_DIR" ]]; then
-            echo ">>> Removendo diretório temporário: $TMP_DIR"
-            rm -rf "$TMP_DIR"
-        fi
-    }
-    trap cleanup EXIT
+# Variáveis do plugin
+GH_REPO="ggml-org/whisper.cpp"
+VERSION="latest"
 
-    # Clona e compila
-    git clone https://github.com/ggerganov/whisper.cpp.git "$TMP_DIR"
-    cd "$TMP_DIR"
-    mkdir -p build && cd build
-    cmake ..
-    cmake --build . --config Release
+# Path de instalação fornecido pelo asdf/mise
+INSTALL_PATH="${ASDF_INSTALL_PATH:-${1:-}}"
+if [ -z "$INSTALL_PATH" ]; then
+  echo ">>> ERRO: nenhum path de instalação fornecido"
+  exit 1
+fi
 
-    # Copia o binário para o destino
-    INSTALL_PATH="$1"
-    mkdir -p "$INSTALL_PATH/bin"
-    cp whisper-cli "$INSTALL_PATH/bin/whisper"
+echo ">>> Instalando whisper.cpp (última versão) em $INSTALL_PATH"
 
-    echo ">>> Whisper instalado em $INSTALL_PATH"
-}
+# Cria diretórios
+mkdir -p "$INSTALL_PATH/bin"
+TMP_DIR=$(mktemp -d)
+trap "rm -rf $TMP_DIR" EXIT
 
-# Usa a função
-install_whisper "$1"
+# Clona o repositório
+echo ">>> Clonando $GH_REPO..."
+git clone --depth 1 "https://github.com/$GH_REPO.git" "$TMP_DIR/src"
+cd "$TMP_DIR/src"
+
+# Detectar última versão (tag)
+if [ "$VERSION" = "latest" ]; then
+    VERSION=$(git describe --tags --abbrev=0 || echo "master")
+    echo ">>> Última versão detectada: $VERSION"
+fi
+git checkout "$VERSION"
+
+# Build estático
+echo ">>> Compilando whisper.cpp (build estático)..."
+mkdir -p build
+cd build
+cmake -S .. -B . -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF
+cmake --build . --config Release -j$(sysctl -n hw.ncpu)
+
+# Copia o binário principal
+echo ">>> Copiando whisper-cli como whisper..."
+cp bin/whisper-cli "$INSTALL_PATH/bin/whisper"
+chmod +x "$INSTALL_PATH/bin/whisper"
+
+echo ">>> Instalação concluída!"
