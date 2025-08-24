@@ -44,10 +44,51 @@ cmake --build . --config Release -j$(sysctl -n hw.ncpu)
 # Copia o binário principal
 echo ">>> Copiando whisper-cli como whisper..."
 
+# Copia o binário principal
 cp bin/whisper-cli "$INSTALL_PATH/bin/whisper-cli"
 chmod +x "$INSTALL_PATH/bin/whisper-cli"
 
-cp ./whisper "$INSTALL_PATH/bin/whisper
-chmod +x "$INSTALL_PATH/bin/whisper"
+# Cria o wrapper vazio
+cat > "$INSTALL_PATH/bin/whisper" << 'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+WHISPER_CLI="$(dirname "$0")/whisper-cli"
+MODEL_DIR="${HOME}/.local/share/mise/whisper-models"
+mkdir -p "$MODEL_DIR"
 
-echo ">>> Instalação concluída!"
+download_model() {
+    local model_name="$1"
+    echo "Baixando modelo $model_name..."
+    curl -L -o "${MODEL_DIR}/ggml-${model_name}.bin" \
+        "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/models/ggml-${model_name}.bin"
+}
+
+ARGS=()
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        -m|--model)
+            if [[ $# -lt 2 ]]; then
+                echo "ERRO: '-m|--model' requer um argumento"
+                exit 1
+            fi
+            MODEL="$2"
+            MODEL_PATH="${MODEL_DIR}/ggml-${MODEL}.bin"
+            if [[ ! -f "$MODEL_PATH" ]]; then
+                download_model "$MODEL"
+            else
+                echo "Modelo $MODEL já existe. Usando $MODEL_PATH"
+            fi
+            ARGS+=("--model" "$MODEL_PATH")
+            shift 2
+            ;;
+        *)
+            ARGS+=("$1")
+            shift
+            ;;
+    esac
+done
+
+exec "$WHISPER_CLI" "${ARGS[@]}"
+EOF
+
+chmod +x "$INSTALL_PATH/bin/whisper"

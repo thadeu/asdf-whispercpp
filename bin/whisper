@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-set -e
+set -euo pipefail
 
 # Caminho para o whisper original
-WHISPER_CLI="whisper-cli"
+WHISPER_CLI="$(dirname "$0")/whisper-cli"
 
 # Pasta onde os models serão armazenados
 MODEL_DIR="${HOME}/.local/share/mise/whisper-models"
@@ -12,8 +12,8 @@ mkdir -p "$MODEL_DIR"
 download_model() {
     local model_name="$1"
     echo "Baixando modelo $model_name..."
-    curl -L -o "${MODEL_DIR}/${model_name}.bin" \
-        "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/models/${model_name}.bin"
+    curl -L -o "${MODEL_DIR}/ggml-${model_name}.bin" \
+        "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/models/ggml-${model_name}.bin"
 }
 
 # Array para armazenar argumentos do whisper
@@ -23,9 +23,14 @@ ARGS=()
 while [[ $# -gt 0 ]]; do
     case "$1" in
         -m|--model)
+            if [[ $# -lt 2 ]]; then
+                echo "ERRO: '-m|--model' requer um argumento"
+                exit 1
+            fi
+
             MODEL="$2"
             # Substitui o argumento pelo caminho do modelo baixado
-            MODEL_PATH="${MODEL_DIR}/${MODEL}.bin"
+            MODEL_PATH="${MODEL_DIR}/ggml-${MODEL}.bin"
             if [[ ! -f "$MODEL_PATH" ]]; then
                 download_model "$MODEL"
             else
