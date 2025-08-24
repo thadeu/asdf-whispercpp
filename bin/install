@@ -43,7 +43,11 @@ cmake --build . --config Release -j$(sysctl -n hw.ncpu)
 
 # Copia o binário principal
 echo ">>> Copiando whisper-cli como whisper..."
-cp bin/whisper-cli "$INSTALL_PATH/bin/whisper"
+
+cp bin/whisper-cli "$INSTALL_PATH/bin/whisper-cli"
+chmod +x "$INSTALL_PATH/bin/whisper-client"
+
+cp ./whisper "$INSTALL_PATH/bin/whisper
 chmod +x "$INSTALL_PATH/bin/whisper"
 
 echo ">>> Instalação concluída!"
