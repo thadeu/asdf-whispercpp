@@ -36,9 +36,18 @@ git checkout "$VERSION"
 
 # Build estático
 echo ">>> Compilando whisper.cpp (build estático)..."
+
 mkdir -p build
 cd build
-cmake -S .. -B . -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF
+
+cmake -S .. -B . -DCMAKE_BUILD_TYPE=Release \
+      -DBUILD_SHARED_LIBS=OFF \
+      -DBUILD_CLI=ON \
+      -DBUILD_SERVER=ON \
+      -DBUILD_BENCH=OFF \
+      -DBUILD_QUANTIZE=OFF \
+      -DBUILD_VAD=OFF
+
 cmake --build . --config Release -j$(sysctl -n hw.ncpu)
 
 # Copia o binário principal
@@ -46,6 +55,8 @@ echo ">>> Copiando whisper-cli como whisper..."
 
 # Copia o binário principal
 cp bin/whisper-cli "$INSTALL_PATH/bin/whisper-cli"
+cp bin/whisper-server "$INSTALL_PATH/bin/whisper-server"
+
 chmod +x "$INSTALL_PATH/bin/whisper-cli"
 
 # Cria o wrapper vazio
