@@ -60,7 +60,7 @@ download_model() {
     local model_name="$1"
     echo "Baixando modelo $model_name..."
     curl -L -o "${MODEL_DIR}/ggml-${model_name}.bin" \
-        "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/models/ggml-${model_name}.bin"
+        "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-${model_name}.bin"
 }
 
 # Array para armazenar argumentos do whisper
