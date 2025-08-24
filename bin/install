@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-source "$(dirname "$0")/../lib/utils.bash"
+# Funções auxiliares (se você tiver utils.bash, pode importar)
+# source "$(dirname "$0")/../lib/utils.bash"
 
 # Variáveis do plugin
 GH_REPO="ggml-org/whisper.cpp"
-BIN_REPO="yaklang/whisper.cpp.binary"
+VERSION="latest"
 
-# Pegar o path de instalação do asdf/mise
+# Path de instalação fornecido pelo asdf/mise
 INSTALL_PATH="${ASDF_INSTALL_PATH:-${1:-}}"
-
 if [ -z "$INSTALL_PATH" ]; then
   echo ">>> ERRO: nenhum path de instalação fornecido"
   exit 1
@@ -17,60 +17,33 @@ fi
 
 echo ">>> Instalando whisper.cpp (última versão) em $INSTALL_PATH"
 
-# Pegar a última tag do GitHub
-VERSION="$(git ls-remote --tags --refs https://github.com/$GH_REPO.git \
-  | cut -d/ -f3 \
-  | grep -E '^v?[0-9]+' \
-  | sed 's/^v//' \
-  | sort -V \
-  | tail -n1)"
-
-echo ">>> Última versão detectada: $VERSION"
-
-OS="$(uname -s | tr '[:upper:]' '[:lower:]')"
-ARCH="$(uname -m)"
-
-download_and_extract() {
-  local url="$1"
-  echo ">>> Baixando binário pré-compilado: $url"
-  mkdir -p "$INSTALL_PATH/bin"
-  curl -sSL "$url" -o /tmp/whisper.zip
-  unzip -q /tmp/whisper.zip -d /tmp/whisper-bin
-  cp /tmp/whisper-bin/* "$INSTALL_PATH/bin/"
-  rm -rf /tmp/whisper.zip /tmp/whisper-bin
-}
-
-# Tentar baixar binary
-BINARY_URL=""
-case "$OS-$ARCH" in
-  linux-x86_64) BINARY_URL="https://github.com/$BIN_REPO/releases/download/v$VERSION/whisper-linux-x64.zip" ;;
-  linux-aarch64) BINARY_URL="https://github.com/$BIN_REPO/releases/download/v$VERSION/whisper-linux-arm64.zip" ;;
-  darwin-x86_64) BINARY_URL="https://github.com/$BIN_REPO/releases/download/v$VERSION/whisper-darwin-x64.zip" ;;
-  darwin-arm64) BINARY_URL="https://github.com/$BIN_REPO/releases/download/v$VERSION/whisper-darwin-arm64.zip" ;;
-esac
-
-if [ -n "$BINARY_URL" ] && curl --output /dev/null --silent --head --fail "$BINARY_URL"; then
-  download_and_extract "$BINARY_URL"
-  echo ">>> whisper.cpp $VERSION instalado com sucesso (binário)"
-  exit 0
-fi
-
-# Fallback: compilar do source
-echo ">>> Nenhum binário encontrado, compilando do source..."
-git clone --depth=1 --branch "v$VERSION" https://github.com/$GH_REPO.git tmp-src
-cd tmp-src
-make -j"$(nproc)"
+# Cria diretórios
 mkdir -p "$INSTALL_PATH/bin"
+TMP_DIR=$(mktemp -d)
+trap "rm -rf $TMP_DIR" EXIT
 
-# Copia os binários relevantes
-cp build/bin/whisper-cli "$INSTALL_PATH/bin/whisper"
+# Clona o repositório
+echo ">>> Clonando $GH_REPO..."
+git clone --depth 1 "https://github.com/$GH_REPO.git" "$TMP_DIR/src"
+cd "$TMP_DIR/src"
 
-# Opcional: copiar outros binários se quiser
-cp build/bin/whisper-server "$INSTALL_PATH/bin/"
-cp build/bin/whisper-bench "$INSTALL_PATH/bin/"
+# Detectar última versão (tag)
+if [ "$VERSION" = "latest" ]; then
+    VERSION=$(git describe --tags --abbrev=0 || echo "master")
+    echo ">>> Última versão detectada: $VERSION"
+fi
+git checkout "$VERSION"
 
-[ -d models ] && cp -r models "$INSTALL_PATH/models" || true
-cd ..
-rm -rf tmp-src
+# Build estático
+echo ">>> Compilando whisper.cpp (build estático)..."
+mkdir -p build
+cd build
+cmake -S .. -B . -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF
+cmake --build . --config Release -j$(sysctl -n hw.ncpu)
 
-echo ">>> whisper.cpp $VERSION instalado com sucesso (compilado)"
+# Copia o binário principal
+echo ">>> Copiando whisper-cli como whisper..."
+cp bin/whisper-cli "$INSTALL_PATH/bin/whisper"
+chmod +x "$INSTALL_PATH/bin/whisper"
+
+echo ">>> Instalação concluída!"
