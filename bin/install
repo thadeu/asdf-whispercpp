@@ -3,12 +3,11 @@ set -euo pipefail
 
 source "$(dirname "$0")/../lib/utils.bash"
 
-GH_REPO="ggml-org/whisper.cpp"
-BIN_REPO="yaklang/whisper.cpp.binary"
-INSTALL_PATH="${1:-}"
+# Pegar o path de instalação do asdf/mise
+INSTALL_PATH="${ASDF_INSTALL_PATH:-${1:-}}"
 
 if [ -z "$INSTALL_PATH" ]; then
-  echo "Uso: $0 <install-path>" >&2
+  echo ">>> ERRO: nenhum path de instalação fornecido"
   exit 1
 fi
 
