@@ -1,6 +1,6 @@
 # asdf-whispercpp
 
-Plugin for [ASDF](https://asdf-vm.com/) and [MISE](https://mise.jdx.dev/) that installs [whisper.cpp](https://github.com/ggml-org/whisper.cpp) - an optimized implementation of OpenAI's Whisper for audio transcription.
+Plugin for [asdf](https://asdf-vm.com/) and [mise](https://mise.jdx.dev/) that installs [whisper.cpp](https://github.com/ggml-org/whisper.cpp) - an optimized implementation of OpenAI's Whisper for audio transcription.
 
 ## 📋 Prerequisites
 
