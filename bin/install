@@ -63,7 +63,10 @@ download_model() {
         "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/models/ggml-${model_name}.bin"
 }
 
+# Array para armazenar argumentos do whisper
 ARGS=()
+
+# Loop para processar parâmetros
 while [[ $# -gt 0 ]]; do
     case "$1" in
         -m|--model)
@@ -88,7 +91,12 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-exec "$WHISPER_CLI" "${ARGS[@]}"
+# Executa o whisper original
+if [[ ${#ARGS[@]} -eq 0 ]]; then
+    exec "$WHISPER_CLI"
+else
+    exec "$WHISPER_CLI" "${ARGS[@]}"
+fi
 EOF
 
 chmod +x "$INSTALL_PATH/bin/whisper"
