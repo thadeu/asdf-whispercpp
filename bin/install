@@ -2,47 +2,33 @@
 set -euo pipefail
 
 install_whisper() {
-    local INSTALL_PATH="${ASDF_INSTALL_PATH:-${1:-}}"
-    if [ -z "$INSTALL_PATH" ]; then
-        echo ">>> ERRO: nenhum path de instalação fornecido"
-        exit 1
-    fi
+    # Cria o diretório temporário
+    TMP_DIR=$(mktemp -d -t whispercpp-XXXX)
+    echo ">>> Criando diretório temporário: $TMP_DIR"
 
-    echo ">>> Instalando whisper.cpp (última versão) em $INSTALL_PATH"
+    # Garantir que ele será apagado mesmo se houver erro
+    cleanup() {
+        if [[ -d "$TMP_DIR" ]]; then
+            echo ">>> Removendo diretório temporário: $TMP_DIR"
+            rm -rf "$TMP_DIR"
+        fi
+    }
+    trap cleanup EXIT
+
+    # Clona e compila
+    git clone https://github.com/ggerganov/whisper.cpp.git "$TMP_DIR"
+    cd "$TMP_DIR"
+    mkdir -p build && cd build
+    cmake ..
+    cmake --build . --config Release
+
+    # Copia o binário para o destino
+    INSTALL_PATH="$1"
     mkdir -p "$INSTALL_PATH/bin"
+    cp whisper-cli "$INSTALL_PATH/bin/whisper"
 
-    # Diretório temporário
-    local TMP_DIR
-    TMP_DIR=$(mktemp -d)
-
-    # garante que o tmp seja deletado no EXIT, mesmo em erro
-    trap 'rm -rf "$TMP_DIR"' EXIT
-
-    # Clona o repositório
-    echo ">>> Clonando ggml-org/whisper.cpp..."
-    git clone --depth 1 "https://github.com/ggml-org/whisper.cpp.git" "$TMP_DIR/src"
-    cd "$TMP_DIR/src"
-
-    # Pega última versão
-    local VERSION
-    VERSION=$(git describe --tags --abbrev=0 || echo "master")
-    echo ">>> Última versão detectada: $VERSION"
-    git checkout "$VERSION"
-
-    # Build estático
-    echo ">>> Compilando whisper.cpp (build estático)..."
-    mkdir -p build
-    cd build
-    cmake -S .. -B . -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF
-    cmake --build . --config Release -j"$(sysctl -n hw.ncpu)"
-
-    # Copia o binário principal
-    echo ">>> Copiando whisper-cli como whisper..."
-    cp bin/whisper-cli "$INSTALL_PATH/bin/whisper"
-    chmod +x "$INSTALL_PATH/bin/whisper"
-
-    echo ">>> Instalação concluída!"
+    echo ">>> Whisper instalado em $INSTALL_PATH"
 }
 
-# Executa a função
-install_whisper "$@"
+# Usa a função
+install_whisper "$1"
