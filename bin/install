@@ -61,7 +61,14 @@ git clone --depth=1 --branch "v$VERSION" https://github.com/$GH_REPO.git tmp-src
 cd tmp-src
 make -j"$(nproc)"
 mkdir -p "$INSTALL_PATH/bin"
-cp main "$INSTALL_PATH/bin/whisper"
+
+# Copia os binários relevantes
+cp build/bin/whisper-cli "$INSTALL_PATH/bin/whisper"
+
+# Opcional: copiar outros binários se quiser
+cp build/bin/whisper-server "$INSTALL_PATH/bin/"
+cp build/bin/whisper-bench "$INSTALL_PATH/bin/"
+
 [ -d models ] && cp -r models "$INSTALL_PATH/models" || true
 cd ..
 rm -rf tmp-src
